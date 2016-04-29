@@ -1,0 +1,17 @@
+{
+  "name": "retrosheet-event-processor",
+  "version": "1.0.0",
+  "devDependencies": {
+    "mocha": "^2.3.3",
+    "istanbul": "^0.3.22"
+  },
+  "scripts": {
+    "preinstall": "./clean.sh && ./buildDependencies.sh",
+    "preuninstall": "./clean.sh",
+    "install": "mv node_modules test_node_modules"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:brevetoxin/retrosheet-event-processor.git"
+  }
+}

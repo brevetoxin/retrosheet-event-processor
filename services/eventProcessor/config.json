@@ -1,0 +1,18 @@
+{
+"clustered": false,
+    "component_root": [
+        "./components",
+        "./node_modules"
+    ],
+  "components": {
+      "processor": {
+        "eventFile": "../../../../resources/2014CHN.EVN"
+      },
+      "@brevetoxin/brevetoxin-winston": {
+        "options": {
+          "colorize": true,
+          "level": "debug"
+        }
+      }
+  }
+}

@@ -1,0 +1,17 @@
+{
+    "name": "processor",
+    "version": "1.0.0",
+    "description": "Processes retrosheet event files into an array of games",
+    "main": "processor.js",
+    "scripts": {
+        "test": "mocha"
+    },
+    "dependencies": {
+      "bluebird": "^2.9.34",
+      "node-uuid": "^1.4.7"
+    },
+    "imports": [
+      "@brevetoxin/brevetoxin-winston"
+    ],
+    "author": "Brian Darrow"
+}
