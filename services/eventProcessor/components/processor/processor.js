@@ -31,6 +31,27 @@ function calculateBoxScore(game) {
 
 }
 
+function exportGameToFile(game) {
+    fs.writeFileAsync('game.json', JSON.stringify(game))
+    .then(function(result) {
+      return result;
+    })
+}
+
+function getMOB(bases) {
+    var mob = 0;
+    for(var i = 1; i < bases.length; i++) {
+      if(bases[i]) {
+        mob ++;
+      }
+    }
+    return mob;
+}
+
+function getBattingPosition(lineup, playerId) {
+  return parseInt(lineup[playerId].battingPosition);
+}
+
 function importEventFile(file) {
   return fs.readFileAsync(__dirname + '/' + file, 'utf-8')
   .then(function (data) {
@@ -48,6 +69,7 @@ function resetInning(gameInfo) {
     gameInfo.bases[1] = null;
     gameInfo.bases[2] = null;
     gameInfo.bases[3] = null;
+    gameInfo.outs = 0;
 
     return gameInfo;
 }
@@ -68,6 +90,7 @@ function recordOut(gameInfo) {
   } else {
     gameInfo.pitchers[gameInfo.lineup[pitchingTeam].pitcher].outs ++;
   }
+  gameInfo.outs ++;
   return gameInfo;
 }
 
@@ -137,6 +160,10 @@ function processPlay(play, gameInfo) {
     gameInfo.currentPA.o = 0;
     gameInfo.currentPA.hbp = 0;
     gameInfo.currentPA.bb = 0;
+    gameInfo.currentPA.so = 0;
+    gameInfo.currentPA.inningOuts = gameInfo.outs;
+    gameInfo.currentPA.mob = getMOB(gameInfo.bases);
+    gameInfo.currentPA.battingPosition = getBattingPosition(gameInfo.lineup[gameInfo.battingTeam], gameInfo.currentPA.player);
     var pitchingTeam = 1 - gameInfo.battingTeam;
     gameInfo.currentPA.pitcher = gameInfo.lineup[pitchingTeam].pitcher;
     gameInfo.bases[0] = gameInfo.currentPA;
@@ -239,6 +266,7 @@ function processPlay(play, gameInfo) {
         gameInfo = advanceRunners(play, gameInfo);
         if(gameInfo.bases[0]) {
             gameInfo.bases[0].o = 1;
+            gameInfo.bases[0].so = 1;
             gameInfo.plateAppearances.push(gameInfo.bases[0]);
             gameInfo.bases[0] = null;
             gameInfo = recordOut(gameInfo);
@@ -392,6 +420,8 @@ function separateGames(data) {
         currentGame.battingTeam = parts[2];
         currentGame.currentPA = {};
         currentGame.currentPA.player = parts[3];
+        currentGame.currentPA.team = currentGame.battingTeam;
+        currentGame.currentPA.inning = parseInt(parts[1]);
         currentGame = processPlay(parts[6], currentGame);
     } else if (parts[0] === 'data' && parts[1] === 'er') {
       currentGame = recordER(currentGame, parts[2], parts[3]);
@@ -404,6 +434,7 @@ function separateGames(data) {
   console.log(calculateBoxScore(currentGame));
   console.log("full game log");
   console.log(currentGame);
+  exportGameToFile(currentGame);
 }
 
 module.exports.initialize = function(params, imports, ready) {
