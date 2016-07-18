@@ -8,7 +8,8 @@
     "minimist": "^1.2.0"
   },
   "dependencies": {
+    "@brevetoxin/brevetoxin-winston": "^1.0.0",
     "@brevetoxin/framing": "^1.0.0",
-    "@brevetoxin/brevetoxin-winston": "^1.0.0"
+    "request": "^2.73.0"
   }
 }

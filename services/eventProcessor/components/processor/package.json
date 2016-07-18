@@ -8,7 +8,9 @@
     },
     "dependencies": {
       "bluebird": "^2.9.34",
-      "node-uuid": "^1.4.7"
+      "node-dir": "~0.1.12",
+      "node-uuid": "^1.4.7",
+      "request-promise": "~2.0.0"
     },
     "imports": [
       "@brevetoxin/brevetoxin-winston"

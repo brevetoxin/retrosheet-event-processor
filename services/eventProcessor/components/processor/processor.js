@@ -2,10 +2,54 @@
 var Promise = require('bluebird');
 var fs = Promise.promisifyAll(require("fs"));
 var uuid = require('node-uuid');
+var dir = Promise.promisifyAll(require('node-dir'));
+var request = require('request-promise');
+
 
 var logger, config;
 var boxscore = {};
 
+function processFiles(files) {
+    return processFile(files.pop())
+      .then(function(result) {
+        if(files.length < 1) {
+          return;
+        } else {
+          return processFiles(files);
+        }
+      });
+}
+
+function processFile(file) {
+  return importEventFile(file)
+    .then(function (data) {
+      return separateGames(data);
+    })
+    .then(function (games) {
+
+      var gamePromises = games.map(function(game) {
+        var options = {
+          url: config.apiUrl,
+          headers: {
+            'content-type': 'application/json'
+          },
+          method: 'POST',
+          body: game,
+          json: true
+        };
+        return request(options)
+         .catch(function(err) {
+           console.log(game.id);
+           process.exit();
+         });
+      })
+      return Promise.all(gamePromises);
+    })
+    .catch(function (error) {
+        console.log(error);
+        throw new Error(error);
+    })
+}
 
 function calculateBoxScore(game) {
   boxscore = {};
@@ -31,6 +75,75 @@ function calculateBoxScore(game) {
 
 }
 
+function sortRunners(runner1, runner2) {
+  var runner1Origin = runner1[0] == 'B' ? 0 : runner1[0];
+  var runner2Origin = runner2[0] == 'B' ? 0 : runner2[0];
+  return runner1Origin < runner2Origin;
+}
+
+function sortStolenBases(runner1, runner2) {
+  var runner1Origin = runner1[2] - 1;
+  var runner2Origin = runner2[2] - 1;
+  return runner1Origin < runner2Origin;
+}
+
+function handleStolenBaseAttempts(gameInfo, play) {
+  var parts = play.split(';');
+  console.log(parts);
+  parts.sort(sortStolenBases);
+  var runnerSplit = play.split(/\.|;/g);
+  var originBases = [], attemptedBase;
+  runnerSplit.forEach(function(split) {
+    originBases.push(split[0]);
+  })
+  for (var i=0; i < parts.length; i++) {
+    console.log(parts[i]);
+    if(parts[i].match(/SB/) || parts[i].match(/CS/)) {
+      var caught = parts[i].match(/CS/);
+      if(caught) {
+        caught = 1;
+      } else {
+        caught = 0;
+      }
+      var error = parts[i].match(/E/);
+      console.log("runnerSplit:" + runnerSplit);
+      var attemptedBase = parts[i].match(/CS[1-3H]|SB[1-3H]/)[0][2];
+      console.log("attemptedBase:" + attemptedBase);
+      if(attemptedBase === 'H') {
+          attemptedBase = 4;
+          gameInfo = recordStolenBaseAttempt(gameInfo.bases[3], gameInfo, caught);
+          if(originBases.indexOf((attemptedBase - 1).toString()) < 0) {
+            if(!caught || error) {
+              gameInfo.bases[3].r = 1
+              gameInfo.plateAppearances.push(gameInfo.bases[3]);
+            }
+            gameInfo.bases[3] = null;
+          }
+      } else {
+          console.log(gameInfo.bases);
+          gameInfo = recordStolenBaseAttempt(gameInfo.bases[attemptedBase - 1], gameInfo, caught);
+          if(originBases.indexOf(((attemptedBase - 1).toString())) < 0) {
+            if(!caught || error) {
+              if(!play.match(/\./)) {
+                play = play + '.';
+              } else {
+                play = play + ';';
+              }
+              play = play + (attemptedBase - 1).toString() + '-' + attemptedBase;
+              console.log(play);
+            } else {
+              gameInfo.bases[attemptedBase - 1] = null;
+            }
+          }
+      }
+    }
+  }
+  return {
+    gameInfo: gameInfo,
+    play: play
+  };
+}
+
 function exportGameToFile(game) {
     fs.writeFileAsync('game.json', JSON.stringify(game))
     .then(function(result) {
@@ -53,7 +166,7 @@ function getBattingPosition(lineup, playerId) {
 }
 
 function importEventFile(file) {
-  return fs.readFileAsync(__dirname + '/' + file, 'utf-8')
+  return fs.readFileAsync(file, 'utf-8')
   .then(function (data) {
     return data.split(/\r?\n/);
   })
@@ -70,7 +183,6 @@ function resetInning(gameInfo) {
     gameInfo.bases[2] = null;
     gameInfo.bases[3] = null;
     gameInfo.outs = 0;
-
     return gameInfo;
 }
 
@@ -107,18 +219,26 @@ function recordStolenBaseAttempt(runner, gameInfo, caught) {
 }
 
 function advanceRunners(play, gameInfo) {
+    console.log("advancing");
     gameInfo.currentBase = 0;
     var runsScored = 0;
     var parts = play.split('.');
     var runners = [];
     if (parts.length > 1) {
-        if(parts[1].match(/(E+?.)/)) {
-          parts[1] = parts[1].replace('X', '-');
-        }
-        parts[1] = parts[1].replace(/\(.+\)/, '');
+//        if(parts[1].match(/(E+?.)/)) {
+//          parts[1] = parts[1].replace('X', '-');
+//        }
+        //parts[1] = parts[1].replace(/\(.+?\)/g, '');
+        parts[1] = parts[1].replace(/#/g, '');
         runners = parts[1].split(';');
+        runners.sort(sortRunners);
+        console.log(runners);
         var basePositions;
         for (var i = 0; i < runners.length; i++) {
+            if(runners[i].match(/(E+?.)/)) {
+              runners[i] = runners[i].replace('X', '-');
+            }
+            runners[i] = runners[i].replace(/\(.+?\)/g, '');
             if(runners[i][1] === 'X'){
                 basePositions = runners[i].split('X');
                 gameInfo = recordOut(gameInfo);
@@ -170,6 +290,7 @@ function processPlay(play, gameInfo) {
     gameInfo.currentBase = 0;
     console.log(play);
     if (play[0] === "S" && play[1] != 'B') {
+        console.log("single");
         gameInfo.bases[0].h = 1;
         gameInfo = advanceRunners(play, gameInfo);
         gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
@@ -193,13 +314,18 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[3] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
-    } else if (play.match(/^(E.?)/) || play.match(/([1-9]E3)/)) {
+    } else if ((play.match(/(E.?)/) || play.match(/([1-9]E[1-9])/)) && !play.match(/POCS/)) {
+        console.log("I'm here at the error spot");
+        var handlerObject = handleStolenBaseAttempts(gameInfo, play);
+        gameInfo = handlerObject.gameInfo;
+        play = handlerObject.play;
         gameInfo = advanceRunners(play, gameInfo);
         if(gameInfo.currentBase === 0) {
           gameInfo.bases[1] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
-    } else if (play.match(/(HR|H[1-9]|H\/)/)) {
+    } else if (play.match(/(HR|H[1-9]|H\/)/) && !play.match(/TH/) && !play.match(/SH/) && !play.match(/SBH/)) {
+        console.log("home run");
         gameInfo.bases[0].hr = 1;
         gameInfo = advanceRunners(play, gameInfo);
         gameInfo.bases[0].rbi = gameInfo.runsScored;
@@ -223,46 +349,39 @@ function processPlay(play, gameInfo) {
         }
         gameInfo.bases[0] = null;
     } else if (play[0] === "I" || (play[0] === "W" && play[1] !== "P")) {
+        console.log("walk");
         gameInfo.bases[0].bb = 1;
+        //check for stolen base
+        var handlerObject = handleStolenBaseAttempts(gameInfo, play);
+        gameInfo = handlerObject.gameInfo;
+        play = handlerObject.play;
         gameInfo = advanceRunners(play, gameInfo);
         gameInfo.bases[1] = gameInfo.bases[0];
         gameInfo.bases[0] = null;
+        console.log(gameInfo.bases);
     } else if (play.match(/(BK)/)) {
         gameInfo = advanceRunners(play, gameInfo);
     } else if (play.match(/^(CS)/)) {
-        if(play[2] === 'H') {
-          gameInfo = recordStolenBaseAttempt(gameInfo.bases[3], gameInfo, true);
-          gameInfo.bases[3] = null;
-          gameInfo.plateAppearances.push(gameInfo.bases[3]);
-        } else {
-          gameInfo = recordStolenBaseAttempt(gameInfo.bases[play[2] - 1], gameInfo, true);
-          gameInfo.bases[play[2] - 1] = null;
-          gameInfo.plateAppearances.push(gameInfo.bases[play[2] - 1]);
-        }
+        console.log("caught stealing");
+        var handlerObject = handleStolenBaseAttempts(gameInfo, play);
+        gameInfo = handlerObject.gameInfo;
+        play = handlerObject.play;
         gameInfo = recordOut(gameInfo);
         gameInfo = advanceRunners(play, gameInfo);
-    } else if (play.match(/(DI|PB|WP|OA)/)) {
-        gameInfo = advanceRunners(play, gameInfo);
-    } else if (play.match(/(PO)/)) {
-        gameInfo = advanceRunners(play, gameInfo);
     } else if (play.match(/^(SB)/)) {
-        console.log(play);
-        var parts = play.split(';');
-        for (i=0; i < parts.length; i++) {
-            if(parts[i][2] === 'H') {
-                gameInfo = recordStolenBaseAttempt(gameInfo.bases[3], gameInfo, false);
-                gameInfo.bases[3].r = 1
-                gameInfo.plateAppearances.push(gameInfo.bases[3]);
-                gameInfo.bases[3] = null;
-
-            }  else {
-                gameInfo = recordStolenBaseAttempt(gameInfo.bases[parts[i][2] - 1], gameInfo, false);
-                gameInfo.bases[parts[i][2]] = gameInfo.bases[parts[i][2] - 1];
-                gameInfo.bases[parts[i][2] - 1] = null;
-            }
-            gameInfo = advanceRunners(play, gameInfo);
-        }
+      var handlerObject = handleStolenBaseAttempts(gameInfo, play);
+      gameInfo = handlerObject.gameInfo;
+      play = handlerObject.play;
+      gameInfo = advanceRunners(play, gameInfo);
+    } else if (play.match(/(DI|PB|WP|OA)/) && !play.match(/^(K)(\+.+)?/)) {
+        gameInfo = advanceRunners(play, gameInfo);
+    } else if (play.match(/(PO)/) && !play.match(/POCS/)) {
+        gameInfo = advanceRunners(play, gameInfo);
     } else if (play.match(/^(K)(\+.+)?/)) {
+        //check for stolen base
+        var handlerObject = handleStolenBaseAttempts(gameInfo, play);
+        gameInfo = handlerObject.gameInfo;
+        play = handlerObject.play;
         gameInfo = advanceRunners(play, gameInfo);
         if(gameInfo.bases[0]) {
             gameInfo.bases[0].o = 1;
@@ -271,37 +390,16 @@ function processPlay(play, gameInfo) {
             gameInfo.bases[0] = null;
             gameInfo = recordOut(gameInfo);
         }
-        //check for stolen base
-        var parts = play.split('+');
-        if(parts[1]) {
-            if(parts[1].match(/SB/)) {
-              var caught = false;
-            } else if (parts[1].match(/CS/)) {
-              var caught = true;
-            }
-            var base = parts[1][2];
-            if(base === 'H') {
-              base = 4;
-            }
-            gameInfo = recordStolenBaseAttempt(gameInfo.bases[parseInt(base) - 1], gameInfo, caught);
-            if(!caught) {
-              if(base === 4) {
-                gameInfo.plateAppearances.push(gameInfo.bases[parseInt(base) - 1]);
-
-              } else {
-                gameInfo.bases[parseInt(base)] = gameInfo.bases[parseInt(base) - 1];
-                gameInfo.bases[parseInt(base) - 1] = '';
-              }
-            } else {
-              gameInfo.plateAppearances.push(gameInfo.bases[parseInt(base) - 1]);
-              gameInfo = recordOut(gameInfo);
-            }
-        }
+    } else if (play.match(/POCS/)) {
+      console.log("picked off caught stealing");
+      var handlerObject = handleStolenBaseAttempts(gameInfo, play);
+      gameInfo = handlerObject.gameInfo;
+      play = handlerObject.play;
+      gameInfo = advanceRunners(play, gameInfo);
     } else {
         var parts = play.split('/');
         var outs = false;
         for (var i = 0; i < parts.length; i++) {
-            console.log(parts[i]);
             if (parts[i].match(/(SF|SH)/) && !play.match(/(FO)/)) {
                 if(gameInfo.bases[0] && parts[i].match(/\./)) {
                   gameInfo = advanceRunners(play, gameInfo);
@@ -314,23 +412,44 @@ function processPlay(play, gameInfo) {
             } else if (parts[i].match(/FO|GDP|LDP|LTP|GTP/)) {
                 if(gameInfo.bases[0]) {
                   gameInfo.bases[0].o = 1;
-                  var runnersOut = play.match(/(\([1-3]|B\))/g);
-                  if(!runnersOut) {
+                  var playParts = play.split('.');
+                  var runnersOut = playParts[0].match(/(\([1-3]\)|\(B\))/g);
+                  console.log("LDP");
+                  console.log(runnersOut);
+                  console.log(parts[1]);
+                  if(!runnersOut || runnersOut.length < 1) {
                       runnersOut = [];
                       var dotSplit = parts[1].split('.');
-                      runnersOut.push(parseInt(dotSplit[1][0]));
+                      if(dotSplit.length > 1) {
+                        runnersOut.push(parseInt(dotSplit[1][0]));
+                      }
                   }
+                  if(!runnersOut || runnersOut.length < 1) {
+                    var xMatch = /([1-3H]X[1-3H])/g;
+                    var matchingRunners = xMatch.exec(play);
+                    console.log(matchingRunners);
+                    matchingRunners.shift();
+                    matchingRunners.forEach(function (runner) {
+                      runnersOut.push(runner[0]);
+                    })
+                  }
+                  console.log("runners out");
+                  console.log(runnersOut);
+                  console.log(runnersOut.length);
                   for (var j = 0; j < runnersOut.length; j++) {
-                    var cRunner = runnersOut[j][1];
+                    var cRunner = runnersOut[j][1] || runnersOut[j];
                     if(cRunner === "B") {
                         cRunner = 0;
                     }
+                    console.log(cRunner);
                     gameInfo.plateAppearances.push(gameInfo.bases[cRunner]);
                     gameInfo.bases[cRunner] = null;
                     gameInfo = recordOut(gameInfo);
                   }
                   gameInfo = advanceRunners(play, gameInfo);
-                  gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
+                  if(!play.match(/DP/)) {
+                    gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
+                  }
                   if(gameInfo.bases[0]) {
                     gameInfo.bases[1] = gameInfo.bases[0];
                   }
@@ -339,6 +458,7 @@ function processPlay(play, gameInfo) {
                   console.log(gameInfo.bases);
                 }
             } else if (play.match(/(FC.?)/)) {
+                console.log("here I am in FC land");
                 if(gameInfo.bases[0]) {
                   gameInfo.bases[0].o = 1;
                   gameInfo = advanceRunners(play, gameInfo);
@@ -349,7 +469,7 @@ function processPlay(play, gameInfo) {
                   gameInfo = recordOut(gameInfo);
                   gameInfo.bases[0] = null;
                 }
-            } else if (parts[i].match(/(?!^\d+$)^.+$/) && !play.match(/(FO)/) && play !== 'NP'){
+            } else if (parts[i].match(/(?!^\d+$)^.+$/) && !play.match(/(FO)/) && play !== 'NP' && !play.match(/(GDP)/)){
                 if(gameInfo.bases[0]) {
                   gameInfo.bases[0].o = 1;
                   gameInfo = advanceRunners(play, gameInfo);
@@ -426,24 +546,43 @@ function separateGames(data) {
     } else if (parts[0] === 'data' && parts[1] === 'er') {
       currentGame = recordER(currentGame, parts[2], parts[3]);
     }
-
   })
   currentGame = resetInning(currentGame);
   games.push(currentGame);
+  return games;
+  /*
   console.log("starting boxscore");
   console.log(calculateBoxScore(currentGame));
   console.log("full game log");
   console.log(currentGame);
   exportGameToFile(currentGame);
+  */
 }
 
 module.exports.initialize = function(params, imports, ready) {
   logger = imports['@brevetoxin/brevetoxin-winston'];
   logger.log('info', 'mapper component initialized');
   config = params;
-  importEventFile(config.eventFile)
-  .then(function (data) {
-    separateGames(data);
-  })
+  dir.filesAsync(__dirname + '/' + config.resourceDirectory)
+  .then(function(files) {
+    files = files.filter(function (file) {
+      var parts = file.split('.');
+      console.log(parts[0]);
+      //return parts[1] == 'EVA' || parts[1] == 'EVN';
+      //return parts[0].indexOf('2015MIA') > -1;
 
+      return parts[0].match(/2015[A-Z]{3}/);
+    });
+    return files;
+  })
+  .then(function(files) {
+    //var processedFilePromises = files.map(function(file) {
+      return processFiles(files);
+    //})
+    //return Promise.all(processedFilePromises);
+  })
+  .catch(function(error) {
+    logger.log('error', JSON.stringify(error));
+    process.exit(1);
+  })
 };

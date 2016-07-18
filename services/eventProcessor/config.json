@@ -6,7 +6,9 @@
     ],
   "components": {
       "processor": {
-        "eventFile": "../../../../resources/2014CHN.EVN"
+        "resourceDirectory": "../../../../resources",
+        "eventFile": "../../../../resources/2014CHN.EVN",
+        "apiUrl": "http://localhost:6080/baseball/games/retrosheet"
       },
       "@brevetoxin/brevetoxin-winston": {
         "options": {
