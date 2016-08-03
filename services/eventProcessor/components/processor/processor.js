@@ -20,28 +20,48 @@ function processFiles(files) {
       });
 }
 
+function getGameByRetroId(id) {
+  var options = {
+    url: config.apiUrl + '/' + id,
+    headers: {
+      'content-type': 'application/json'
+    },
+    method: 'GET'
+  }
+  return request(options);
+}
+
 function processFile(file) {
   return importEventFile(file)
     .then(function (data) {
       return separateGames(data);
     })
     .then(function (games) {
-
       var gamePromises = games.map(function(game) {
-        var options = {
-          url: config.apiUrl,
-          headers: {
-            'content-type': 'application/json'
-          },
-          method: 'POST',
-          body: game,
-          json: true
-        };
-        return request(options)
-         .catch(function(err) {
-           console.log(game.id);
-           process.exit();
-         });
+        return getGameByRetroId(game.id)
+        .then(function(result) {
+          return result;
+        })
+        .catch(function (result) {
+          if(result.statusCode == 404) {
+            var options = {
+              url: config.apiUrl,
+              headers: {
+                'content-type': 'application/json'
+              },
+              method: 'POST',
+              body: game,
+              json: true
+            };
+            return request(options)
+             .catch(function(err) {
+               console.log(game.id);
+               process.exit();
+             });
+          } else {
+            throw error(result);
+          }
+        });
       })
       return Promise.all(gamePromises);
     })
@@ -417,11 +437,14 @@ function processPlay(play, gameInfo) {
                   console.log("LDP");
                   console.log(runnersOut);
                   console.log(parts[1]);
+                  console.log(play);
                   if(!runnersOut || runnersOut.length < 1) {
                       runnersOut = [];
                       var dotSplit = parts[1].split('.');
                       if(dotSplit.length > 1) {
-                        runnersOut.push(parseInt(dotSplit[1][0]));
+                        if(dotSplit[1][1] !== '-') {
+                          runnersOut.push(parseInt(dotSplit[1][0]));
+                        }
                       }
                   }
                   if(!runnersOut || runnersOut.length < 1) {
@@ -568,10 +591,10 @@ module.exports.initialize = function(params, imports, ready) {
     files = files.filter(function (file) {
       var parts = file.split('.');
       console.log(parts[0]);
-      //return parts[1] == 'EVA' || parts[1] == 'EVN';
-      //return parts[0].indexOf('2015MIA') > -1;
+      return parts[1] == 'EVA' || parts[1] == 'EVN';
+      //return parts[0].indexOf('2002PHI') > -1;
 
-      return parts[0].match(/2015[A-Z]{3}/);
+      //return parts[0].match(/2007[A-Z]{3}/);
     });
     return files;
   })
