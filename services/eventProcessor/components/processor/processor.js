@@ -552,6 +552,13 @@ function separateGames(data) {
       };
       if(parts[5] == "1") {
         currentGame.lineup[parts[3]].pitcher = parts[1];
+        if(parts[0] === 'start') {
+            if(parts[3] === 0) {
+              currentGame.info['visitingStarter'] = parts[1];
+            } else {
+              currentGame.info['homeStarter'] = parts[1];
+            }
+        }
       }
       if(parts[5] == "2") {
         currentGame.lineup[parts[3]].catcher = parts[1];
