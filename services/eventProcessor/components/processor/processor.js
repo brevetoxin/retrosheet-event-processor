@@ -553,7 +553,7 @@ function separateGames(data) {
       if(parts[5] == "1") {
         currentGame.lineup[parts[3]].pitcher = parts[1];
         if(parts[0] === 'start') {
-            if(parts[3] === 0) {
+            if(parts[3] == "0") {
               currentGame.info['visitingStarter'] = parts[1];
             } else {
               currentGame.info['homeStarter'] = parts[1];
@@ -601,7 +601,7 @@ module.exports.initialize = function(params, imports, ready) {
       return parts[1] == 'EVA' || parts[1] == 'EVN';
       //return parts[0].indexOf('2002PHI') > -1;
 
-      //return parts[0].match(/2007[A-Z]{3}/);
+      //return parts[0].match(/1979[A-Z]{3}/);
     });
     return files;
   })
