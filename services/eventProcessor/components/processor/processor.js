@@ -562,6 +562,13 @@ function separateGames(data) {
       }
       if(parts[5] == "2") {
         currentGame.lineup[parts[3]].catcher = parts[1];
+        if(parts[0] === 'start') {
+            if(parts[3] == "0") {
+              currentGame.info['visitingCatcher'] = parts[1];
+            } else {
+              currentGame.info['homeCatcher'] = parts[1];
+            }
+        }
       }
     } else if (parts[0] === 'play') {
         if(currentGame.battingTeam !== parts[2]) {
@@ -598,8 +605,8 @@ module.exports.initialize = function(params, imports, ready) {
     files = files.filter(function (file) {
       var parts = file.split('.');
       console.log(parts[0]);
-      return parts[1] == 'EVA' || parts[1] == 'EVN';
-      //return parts[0].indexOf('2002PHI') > -1;
+      //return parts[1] == 'EVA' || parts[1] == 'EVN';
+      return parts[0].indexOf('2002PHI') > -1;
 
       //return parts[0].match(/1979[A-Z]{3}/);
     });
