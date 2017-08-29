@@ -10,6 +10,8 @@
         "eventFile": "../../../../resources/2014CHN.EVN",
         "apiUrl": "http://localhost:6080/baseball/games/retrosheet"
       },
+      "eventBus": {},
+      "situationResearch": {},
       "@brevetoxin/brevetoxin-winston": {
         "options": {
           "colorize": true,

@@ -1,0 +1,15 @@
+{
+    "name": "eventBus",
+    "version": "1.0.0",
+    "description": "EventBus for research into retrosheet event files",
+    "main": "eventBus.js",
+    "scripts": {
+        "test": "mocha"
+    },
+    "dependencies": {
+    },
+    "imports": [
+      "@brevetoxin/brevetoxin-winston"
+    ],
+    "author": "Brian Darrow"
+}

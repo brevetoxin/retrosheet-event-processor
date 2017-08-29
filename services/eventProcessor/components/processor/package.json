@@ -13,7 +13,9 @@
       "request-promise": "~2.0.0"
     },
     "imports": [
-      "@brevetoxin/brevetoxin-winston"
+      "@brevetoxin/brevetoxin-winston",
+      "eventBus",
+      "situationResearch"
     ],
     "author": "Brian Darrow"
 }

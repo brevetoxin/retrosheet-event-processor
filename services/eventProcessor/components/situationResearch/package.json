@@ -1,0 +1,16 @@
+{
+    "name": "situationResearch",
+    "version": "1.0.0",
+    "description": "Component for mining retrosheet data for situational data",
+    "main": "situation.js",
+    "scripts": {
+        "test": "mocha"
+    },
+    "dependencies": {
+    },
+    "imports": [
+      "@brevetoxin/brevetoxin-winston",
+      "eventBus"
+    ],
+    "author": "Brian Darrow"
+}
