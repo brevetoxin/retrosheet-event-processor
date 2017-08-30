@@ -253,6 +253,7 @@ function advanceRunners(play, gameInfo) {
                 basePositions = runners[i].split('X');
                 gameInfo = recordOut(gameInfo);
                 gameInfo.bases[basePositions[0]] = null;
+                eventBus.trigger('runnerChange', gameInfo, { runner: basePositions[0], result: 'O' });
             } else {
                 basePositions = runners[i].split('-');
                 if (basePositions[0] === 'B') {
@@ -263,8 +264,10 @@ function advanceRunners(play, gameInfo) {
                         gameInfo.bases[basePositions[0]].r = 1;
                         gameInfo.plateAppearances.push(gameInfo.bases[basePositions[0]]);
                         runsScored++;
+                        eventBus.trigger('runnerChange', gameInfo, { runner: basePositions[0], result: 'H' });
                     } else {
                         gameInfo.bases[basePositions[1]] = gameInfo.bases[basePositions[0]];
+                        eventBus.trigger('runnerChange', gameInfo, { runner: basePositions[0], result: basePositions[1] });
                     }
                     if(basePositions[0] !== basePositions[1]) {
                       gameInfo.bases[basePositions[0]] = null;
@@ -298,6 +301,7 @@ function processPlay(play, gameInfo) {
     gameInfo.bases[0] = gameInfo.currentPA;
     gameInfo.currentBase = 0;
     if (play[0] === "S" && play[1] != 'B') {
+        // single
         gameInfo.bases[0].h = 1;
         gameInfo = advanceRunners(play, gameInfo);
         gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
@@ -305,7 +309,9 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[1] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
+        eventBus.trigger('play', gameInfo, 'S');
     } else if (play[0] === "D" && play[1] != 'I') {
+        // Double
         gameInfo.bases[0]['2b'] = 1;
         gameInfo = advanceRunners(play, gameInfo);
         gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
@@ -313,7 +319,9 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[2] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
+        eventBus.trigger('play', gameInfo, 'D');
     } else if (play[0] === "T") {
+        // Triple
         gameInfo.bases[0]['3b'] = 1;
         gameInfo = advanceRunners(play, gameInfo);
         gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
@@ -321,6 +329,7 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[3] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
+        eventBus.trigger('play', gameInfo, 'T');
     } else if ((play.match(/(E.?)/) || play.match(/([1-9]E[1-9])/)) && !play.match(/POCS/)) {
         var handlerObject = handleStolenBaseAttempts(gameInfo, play);
         gameInfo = handlerObject.gameInfo;
@@ -331,6 +340,7 @@ function processPlay(play, gameInfo) {
         }
         gameInfo.bases[0] = null;
     } else if (play.match(/(HR|H[1-9]|H\/)/) && !play.match(/TH/) && !play.match(/SH/) && !play.match(/SBH/)) {
+        // Home run
         gameInfo.bases[0].hr = 1;
         gameInfo = advanceRunners(play, gameInfo);
         gameInfo.bases[0].rbi = gameInfo.runsScored;
@@ -338,6 +348,7 @@ function processPlay(play, gameInfo) {
         gameInfo.bases[0].r = 1;
         gameInfo.plateAppearances.push(gameInfo.bases[0]);
         gameInfo.bases[0] = null;
+        eventBus.trigger('play', gameInfo, 'HR');
     } else if (play.match(/(HP)/)) {
         gameInfo.bases[0].hbp = 1;
         gameInfo = advanceRunners(play, gameInfo);
@@ -346,6 +357,7 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[1] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
+        eventBus.trigger('play', gameInfo, 'HBP');
     } else if (play[0] === "C" && play[1] != 'S') {
         gameInfo = advanceRunners(play, gameInfo);
         gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
@@ -362,8 +374,10 @@ function processPlay(play, gameInfo) {
         gameInfo = advanceRunners(play, gameInfo);
         gameInfo.bases[1] = gameInfo.bases[0];
         gameInfo.bases[0] = null;
+        eventBus.trigger('play', gameInfo, 'BB');
     } else if (play.match(/(BK)/)) {
         gameInfo = advanceRunners(play, gameInfo);
+        eventBus.trigger('play', gameInfo, 'BK');
     } else if (play.match(/^(CS)/)) {
         var handlerObject = handleStolenBaseAttempts(gameInfo, play);
         gameInfo = handlerObject.gameInfo;
@@ -410,6 +424,8 @@ function processPlay(play, gameInfo) {
                   }
                   gameInfo.bases[0] = null;
                 }
+                if (parts[i].match(/(SF)/)) eventBus.trigger('play', gameInfo, 'FBO');
+                else eventBus.trigger('play', gameInfo, 'GBO');
             } else if (parts[i].match(/FO|GDP|LDP|LTP|GTP/)) {
                 if(gameInfo.bases[0]) {
                   gameInfo.bases[0].o = 1;
@@ -450,6 +466,8 @@ function processPlay(play, gameInfo) {
                   }
                   gameInfo.bases[0] = null;
                 }
+                if (parts[i].match(/FO|GDP|GTP/)) eventBus.trigger('play', gameInfo, 'GBO');
+                else eventBus.trigger('play', gameInfo, 'FBO');
             } else if (play.match(/(FC.?)/)) {
                 if(gameInfo.bases[0]) {
                   gameInfo.bases[0].o = 1;
@@ -461,6 +479,7 @@ function processPlay(play, gameInfo) {
                   gameInfo = recordOut(gameInfo);
                   gameInfo.bases[0] = null;
                 }
+                eventBus.trigger('play', gameInfo, 'GBO');
             } else if (parts[i].match(/(?!^\d+$)^.+$/) && !play.match(/(FO)/) && play !== 'NP' && !play.match(/(GDP)/)){
                 if(gameInfo.bases[0]) {
                   gameInfo.bases[0].o = 1;
@@ -540,6 +559,7 @@ function separateGames(data) {
         }
       }
     } else if (parts[0] === 'play') {
+        eventBus.trigger('newPlay', currentGame);
         if(currentGame.battingTeam !== parts[2]) {
           currentGame = resetInning(currentGame);
         }
@@ -569,7 +589,6 @@ module.exports.initialize = function(params, imports, ready) {
   logger = imports['@brevetoxin/brevetoxin-winston'];
   logger.log('info', 'mapper component initialized');
   eventBus = imports['eventBus'];
-  eventBus.trigger('test', 'some shit', 'some other shit');
   config = params;
   dir.filesAsync(__dirname + '/' + config.resourceDirectory)
   .then(function(files) {
