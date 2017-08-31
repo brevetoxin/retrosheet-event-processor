@@ -9,6 +9,7 @@ const setSituation = (gameInfo) => {
   component.situation = '0';
   component.outcome = {
     play: '',
+    0: '',
     1: '',
     2: '',
     3: ''

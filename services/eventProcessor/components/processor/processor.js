@@ -261,6 +261,7 @@ function advanceRunners(play, gameInfo) {
                 if (basePositions[0] === 'B') {
                     gameInfo.bases[basePositions[1]] = gameInfo.bases[0];
                     gameInfo.currentBase = basePositions[1];
+                    eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 1 });
                 } else {
                     if (basePositions[1] === 'H') {
                         gameInfo.bases[basePositions[0]].r = 1;
@@ -311,6 +312,7 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[1] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
+        eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: '1' });
         eventBus.trigger('play', gameInfo, 'S');
     } else if (play[0] === "D" && play[1] != 'I') {
         // Double
@@ -321,6 +323,7 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[2] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
+        eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: '2' });
         eventBus.trigger('play', gameInfo, 'D');
     } else if (play[0] === "T") {
         // Triple
@@ -331,6 +334,7 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[3] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
+        eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: '3' });
         eventBus.trigger('play', gameInfo, 'T');
     } else if ((play.match(/(E.?)/) || play.match(/([1-9]E[1-9])/)) && !play.match(/POCS/)) {
         var handlerObject = handleStolenBaseAttempts(gameInfo, play);
@@ -350,6 +354,7 @@ function processPlay(play, gameInfo) {
         gameInfo.bases[0].r = 1;
         gameInfo.plateAppearances.push(gameInfo.bases[0]);
         gameInfo.bases[0] = null;
+        eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'H' });
         eventBus.trigger('play', gameInfo, 'HR');
     } else if (play.match(/(HP)/)) {
         gameInfo.bases[0].hbp = 1;
@@ -359,6 +364,7 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[1] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
+        eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: '1' });
         eventBus.trigger('play', gameInfo, 'HBP');
     } else if (play[0] === "C" && play[1] != 'S') {
         gameInfo = advanceRunners(play, gameInfo);
@@ -376,6 +382,7 @@ function processPlay(play, gameInfo) {
         gameInfo = advanceRunners(play, gameInfo);
         gameInfo.bases[1] = gameInfo.bases[0];
         gameInfo.bases[0] = null;
+        eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: '1' });
         eventBus.trigger('play', gameInfo, 'BB');
     } else if (play.match(/(BK)/)) {
         gameInfo = advanceRunners(play, gameInfo);
@@ -426,9 +433,12 @@ function processPlay(play, gameInfo) {
                   }
                   gameInfo.bases[0] = null;
                 }
+                eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'O' });
                 if (parts[i].match(/(SF)/)) eventBus.trigger('play', gameInfo, 'FBO');
                 else eventBus.trigger('play', gameInfo, 'GBO');
             } else if (parts[i].match(/FO|GDP|LDP|LTP|GTP/)) {
+                console.log('double play, truple play or force out');
+                console.log(play);
                 if(gameInfo.bases[0]) {
                   gameInfo.bases[0].o = 1;
                   var playParts = play.split('.');
@@ -468,6 +478,7 @@ function processPlay(play, gameInfo) {
                   }
                   if(gameInfo.bases[0]) {
                     gameInfo.bases[1] = gameInfo.bases[0];
+                    eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: '1' });
                   }
                   gameInfo.bases[0] = null;
                 }
@@ -480,6 +491,7 @@ function processPlay(play, gameInfo) {
                   gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
                   if(gameInfo.currentBase === 0) {
                     gameInfo.bases[1] = gameInfo.bases[0];
+                    eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: '1' });
                   }
                   gameInfo = recordOut(gameInfo);
                   gameInfo.bases[0] = null;
