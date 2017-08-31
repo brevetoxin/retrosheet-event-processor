@@ -6,7 +6,7 @@ var dir = Promise.promisifyAll(require('node-dir'));
 var request = require('request-promise');
 
 
-var logger, config, eventBus;
+var logger, config, eventBus, updateDatabase;
 var boxscore = {};
 
 function processFiles(files) {
@@ -37,34 +37,36 @@ function processFile(file) {
       return separateGames(data);
     })
     .then(function (games) {
-      var gamePromises = games.map(function(game) {
-        return getGameByRetroId(game.id)
-        .then(function(result) {
-          return result;
+      if (updateDatabase) {
+        var gamePromises = games.map(function(game) {
+          return getGameByRetroId(game.id)
+          .then(function(result) {
+            return result;
+          })
+          .catch(function (result) {
+            if(result.statusCode == 404) {
+              var options = {
+                url: config.apiUrl,
+                headers: {
+                  'content-type': 'application/json'
+                },
+                method: 'POST',
+                body: game,
+                json: true
+              };
+              return request(options)
+               .catch(function(err) {
+                 console.log(game.id);
+                 process.exit();
+               });
+            } else {
+              console.log(result);
+              throw error(result);
+            }
+          });
         })
-        .catch(function (result) {
-          if(result.statusCode == 404) {
-            var options = {
-              url: config.apiUrl,
-              headers: {
-                'content-type': 'application/json'
-              },
-              method: 'POST',
-              body: game,
-              json: true
-            };
-            return request(options)
-             .catch(function(err) {
-               console.log(game.id);
-               process.exit();
-             });
-          } else {
-            console.log(result);
-            throw error(result);
-          }
-        });
-      })
-      return Promise.all(gamePromises);
+        return Promise.all(gamePromises);
+      } else return [];
     })
     .catch(function (error) {
         console.log(error);
@@ -437,6 +439,7 @@ function processPlay(play, gameInfo) {
                       if(dotSplit.length > 1) {
                         if(dotSplit[1][1] !== '-') {
                           runnersOut.push(parseInt(dotSplit[1][0]));
+                          eventBus.trigger('runnerChange', gameInfo, { runner: parseInt(dotSplit[1][0]), result: 'O' });
                         }
                       }
                   }
@@ -446,6 +449,7 @@ function processPlay(play, gameInfo) {
                     matchingRunners.shift();
                     matchingRunners.forEach(function (runner) {
                       runnersOut.push(runner[0]);
+                      eventBus.trigger('runnerChange', gameInfo, { runner: runner[0], result: 'O' });
                     })
                   }
                   for (var j = 0; j < runnersOut.length; j++) {
@@ -455,6 +459,7 @@ function processPlay(play, gameInfo) {
                     }
                     gameInfo.plateAppearances.push(gameInfo.bases[cRunner]);
                     gameInfo.bases[cRunner] = null;
+                    eventBus.trigger('runnerChange', gameInfo, { runner: cRunner, result: 'O' });
                     gameInfo = recordOut(gameInfo);
                   }
                   gameInfo = advanceRunners(play, gameInfo);
@@ -590,6 +595,7 @@ module.exports.initialize = function(params, imports, ready) {
   logger.log('info', 'mapper component initialized');
   eventBus = imports['eventBus'];
   config = params;
+  updateDatabase = config.updateDatabase;
   dir.filesAsync(__dirname + '/' + config.resourceDirectory)
   .then(function(files) {
     files = files.filter(function (file) {

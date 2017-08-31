@@ -8,7 +8,8 @@
       "processor": {
         "resourceDirectory": "../../../../resources",
         "eventFile": "../../../../resources/2014CHN.EVN",
-        "apiUrl": "http://localhost:6080/baseball/games/retrosheet"
+        "apiUrl": "http://localhost:6080/baseball/games/retrosheet",
+        "updateDatabase": false
       },
       "eventBus": {},
       "situationResearch": {},
