@@ -437,8 +437,6 @@ function processPlay(play, gameInfo) {
                 if (parts[i].match(/(SF)/)) eventBus.trigger('play', gameInfo, 'FBO');
                 else eventBus.trigger('play', gameInfo, 'GBO');
             } else if (parts[i].match(/FO|GDP|LDP|LTP|GTP/)) {
-                console.log('double play, truple play or force out');
-                console.log(play);
                 if(gameInfo.bases[0]) {
                   gameInfo.bases[0].o = 1;
                   var playParts = play.split('.');
@@ -473,8 +471,17 @@ function processPlay(play, gameInfo) {
                     gameInfo = recordOut(gameInfo);
                   }
                   gameInfo = advanceRunners(play, gameInfo);
-                  if(!play.match(/DP/)) {
+                  if(!play.match(/DP/) && !play.match(/TP/)) {
                     gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
+                  } else {
+                    if (play.match(/DP/) && runnersOut.length < 2) {
+                      gameInfo.bases[0] = null;
+                      eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'O' });
+                    }
+                    if (play.match(/TP/) && runnersOut.length < 3) {
+                      gameInfo.bases[0] = null;
+                      eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'O' });
+                    }
                   }
                   if(gameInfo.bases[0]) {
                     gameInfo.bases[1] = gameInfo.bases[0];
@@ -576,7 +583,6 @@ function separateGames(data) {
         }
       }
     } else if (parts[0] === 'play') {
-        eventBus.trigger('newPlay', currentGame);
         if(currentGame.battingTeam !== parts[2]) {
           currentGame = resetInning(currentGame);
         }
@@ -585,6 +591,7 @@ function separateGames(data) {
         currentGame.currentPA.player = parts[3];
         currentGame.currentPA.team = currentGame.battingTeam;
         currentGame.currentPA.inning = parseInt(parts[1]);
+        eventBus.trigger('newPlay', currentGame);
         currentGame = processPlay(parts[6], currentGame);
     } else if (parts[0] === 'data' && parts[1] === 'er') {
       currentGame = recordER(currentGame, parts[2], parts[3]);
