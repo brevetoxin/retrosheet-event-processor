@@ -32,6 +32,7 @@ function getGameByRetroId(id) {
 }
 
 function processFile(file) {
+  logger.info(`Processing ${file}`);
   return importEventFile(file)
     .then(function (data) {
       return separateGames(data);
@@ -487,11 +488,11 @@ function processPlay(play, gameInfo) {
                     gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
                   } else {
                     if (play.match(/DP/) && runnersOut.length < 2) {
-                      gameInfo.bases[0] = null;
+                      // gameInfo.bases[0] = null;
                       eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'O' });
                     }
                     if (play.match(/TP/) && runnersOut.length < 3) {
-                      gameInfo.bases[0] = null;
+                      // gameInfo.bases[0] = null;
                       eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'O' });
                     }
                   }
@@ -637,7 +638,7 @@ module.exports.initialize = function(params, imports, ready) {
       //return parts[1] == 'EVA' || parts[1] == 'EVN';
       //return parts[0].indexOf('2016WAS') > -1;
 
-      return parts[0].match(/1997[A-Z]{3}/);
+      return parts[0].match(/1997[A-Z]{3}|1998[A-Z]{3}|1999[A-Z]{3}|20[0-9]{2}[A-Z]{3}/);
     });
     return files;
   })
