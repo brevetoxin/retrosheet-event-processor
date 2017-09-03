@@ -7,11 +7,9 @@ component.events = {};
 component.subscribe = (event, callback) => {
   component.events[event] = component.events[event] || [];
   component.events[event].push(callback);
-  console.log(component.events);
 };
 
 component.trigger = (event, gameInfo, eventData) => {
-  console.log('here');
   component.events[event].forEach(callback => {
     callback(gameInfo, eventData);
   });

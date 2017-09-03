@@ -12,7 +12,9 @@
         "updateDatabase": false
       },
       "eventBus": {},
-      "situationResearch": {},
+      "situationResearch": {
+        "file": "1979.csv"
+      },
       "@brevetoxin/brevetoxin-winston": {
         "options": {
           "colorize": true,

@@ -68,6 +68,9 @@ function processFile(file) {
         return Promise.all(gamePromises);
       } else return [];
     })
+    .then(() => {
+      eventBus.trigger('eof');
+    })
     .catch(function (error) {
         console.log(error);
         throw new Error(error);
