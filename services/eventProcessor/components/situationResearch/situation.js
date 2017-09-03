@@ -36,8 +36,11 @@ const recordRunnerOutcome = (gameInfo, runnerInfo) => {
 };
 
 const appendFile = () => {
+  const contents = component.filecontents;
+  component.filecontents = '';
+  console.log('saving...');
   return new Promise((resolve, reject) => {
-    fs.appendFile(config.file, component.filecontents, function (err) {
+    fs.appendFile(config.file, contents, function (err) {
        if (err) reject(err);
        resolve();
     });

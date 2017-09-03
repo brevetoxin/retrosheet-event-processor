@@ -69,7 +69,7 @@ function processFile(file) {
       } else return [];
     })
     .then(() => {
-      eventBus.trigger('eof');
+      return eventBus.trigger('eof');
     })
     .catch(function (error) {
         console.log(error);
