@@ -517,6 +517,9 @@ function processPlay(play, gameInfo) {
                   }
                   gameInfo = recordOut(gameInfo);
                   gameInfo.bases[0] = null;
+                  eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'O' });
+                  if (play.match(/L|F|P|/)) eventBus.trigger('play', gameInfo, 'FBO');
+                  else eventBus.trigger('play', gameInfo, 'GBO');
                 }
             }
         }
