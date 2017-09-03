@@ -637,7 +637,7 @@ module.exports.initialize = function(params, imports, ready) {
       //return parts[1] == 'EVA' || parts[1] == 'EVN';
       //return parts[0].indexOf('2016WAS') > -1;
 
-      return parts[0].match(/1979[A-Z]{3}/);
+      return parts[0].match(/1997[A-Z]{3}/);
     });
     return files;
   })

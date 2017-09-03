@@ -13,7 +13,7 @@
       },
       "eventBus": {},
       "situationResearch": {
-        "file": "1979.csv"
+        "file": "1997.csv"
       },
       "@brevetoxin/brevetoxin-winston": {
         "options": {
