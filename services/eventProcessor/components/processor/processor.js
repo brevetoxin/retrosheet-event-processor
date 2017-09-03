@@ -348,6 +348,7 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[1] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
+        eventBus.trigger('play', gameInfo, 'E');
     } else if (play.match(/(HR|H[1-9]|H\/)/) && !play.match(/TH/) && !play.match(/SH/) && !play.match(/SBH/)) {
         // Home run
         gameInfo.bases[0].hr = 1;
@@ -376,6 +377,7 @@ function processPlay(play, gameInfo) {
           gameInfo.bases[1] = gameInfo.bases[0];
         }
         gameInfo.bases[0] = null;
+        eventBus.trigger('play', gameInfo, 'INT');
     } else if (play[0] === "I" || (play[0] === "W" && play[1] !== "P")) {
         gameInfo.bases[0].bb = 1;
         //check for stolen base
@@ -396,15 +398,19 @@ function processPlay(play, gameInfo) {
         play = handlerObject.play;
         gameInfo = recordOut(gameInfo);
         gameInfo = advanceRunners(play, gameInfo);
+        eventBus.trigger('play', gameInfo, 'CS');
     } else if (play.match(/^(SB)/)) {
       var handlerObject = handleStolenBaseAttempts(gameInfo, play);
       gameInfo = handlerObject.gameInfo;
       play = handlerObject.play;
       gameInfo = advanceRunners(play, gameInfo);
+      eventBus.trigger('play', gameInfo, 'SB');
     } else if (play.match(/(DI|PB|WP|OA)/) && !play.match(/^(K)(\+.+)?/)) {
         gameInfo = advanceRunners(play, gameInfo);
+        eventBus.trigger('play', gameInfo, 'WP');
     } else if (play.match(/(PO)/) && !play.match(/POCS/)) {
         gameInfo = advanceRunners(play, gameInfo);
+        eventBus.trigger('play', gameInfo, 'PO');
     } else if (play.match(/^(K)(\+.+)?/)) {
         //check for stolen base
         var handlerObject = handleStolenBaseAttempts(gameInfo, play);
@@ -418,11 +424,14 @@ function processPlay(play, gameInfo) {
             gameInfo.bases[0] = null;
             gameInfo = recordOut(gameInfo);
         }
+        eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'O' });
+        eventBus.trigger('play', gameInfo, 'K');
     } else if (play.match(/POCS/)) {
       var handlerObject = handleStolenBaseAttempts(gameInfo, play);
       gameInfo = handlerObject.gameInfo;
       play = handlerObject.play;
       gameInfo = advanceRunners(play, gameInfo);
+      eventBus.trigger('play', gameInfo, 'PO');
     } else {
         var parts = play.split('/');
         var outs = false;
