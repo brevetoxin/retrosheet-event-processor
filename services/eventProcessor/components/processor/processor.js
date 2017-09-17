@@ -487,11 +487,11 @@ function processPlay(play, gameInfo) {
                   if(!play.match(/DP/) && !play.match(/TP/)) {
                     gameInfo.bases[gameInfo.currentBase].rbi = gameInfo.runsScored;
                   } else {
-                    if (play.match(/DP/) && runnersOut.length < 2) {
-                      // gameInfo.bases[0] = null;
+                    if (parts[i].match(/DP/) && runnersOut.length < 2) {
+                      gameInfo.bases[0] = null;
                       eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'O' });
                     }
-                    if (play.match(/TP/) && runnersOut.length < 3) {
+                    if (parts[i].match(/TP/) && runnersOut.length < 3) {
                       // gameInfo.bases[0] = null;
                       eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'O' });
                     }
@@ -528,7 +528,7 @@ function processPlay(play, gameInfo) {
                   gameInfo = recordOut(gameInfo);
                   gameInfo.bases[0] = null;
                   eventBus.trigger('runnerChange', gameInfo, { runner: '0', result: 'O' });
-                  if (play.match(/L|F|P|/)) eventBus.trigger('play', gameInfo, 'FBO');
+                  if (play.match(/L|F|P/)) eventBus.trigger('play', gameInfo, 'FBO');
                   else eventBus.trigger('play', gameInfo, 'GBO');
                 }
             }
